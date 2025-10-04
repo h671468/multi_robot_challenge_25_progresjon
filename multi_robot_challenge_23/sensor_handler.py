@@ -1,58 +1,49 @@
 import rclpy
 from rclpy.node import Node
-from sensor_msgs.msg import LaserScan
+from rclpy.qos import qos_profile_sensor_data
+from sensor_msgs.msg import LaserScan, Image
 from nav_msgs.msg import Odometry
 from cv_bridge import CvBridge, CvBridgeError
-from sensor_msgs.msg import Image
 
 class SensorHandler:
+    
     def __init__(self, node: Node):
         self.node = node
         self.bridge = CvBridge()
-        self.latest_scan = None
-        self.latest_odom = None
-        self.latest_image = None
 
-        #Abonnenter for å motta sensordata
-        self.node.scan_subscriber = self.node.create_subscription(
-            LaserScan,
-            'scan',
-            self.scan_callback,
-            10
-        )
-        self.node.odom_subscriber = self.node.create_subscription(
-            Odometry,
-            "odom",
-            self.odom_callback,
-            10
-        )
-        self.node.image_subscriber = self.node.create_subscription(
-            Image,
-            '/camera/image_raw',
-            self.image_callback,
-            10
-        )
+        self._latest_scan = None
+        self._latest_odom = None
+        self._latest_image = None
 
-        self.node.get_logger().info('Sensor_Handler initialisert.')
+        # Setter opp subscribers. Bruker relative topic-navn ('scan', 'odom')
+        self.node.create_subscription(LaserScan, 'scan', self._scan_cb, qos_profile_sensor_data)
+        self.node.create_subscription(Odometry, 'odom', self._odom_cb, 10)
+        self.node.create_subscription(Image, 'camera/image_raw', self._image_cb, qos_profile_sensor_data)
 
-    def scan_callback(self, msg: LaserScan):
-        self.latest_scan = msg
+        self.node.get_logger().info('SensorHandler initialisert.')
 
-    def odom_callback(self, msg: Odometry):
-        self.latest_odom = msg
+    # --- Callbacks ---
+    
+    def _scan_cb(self, msg: LaserScan):
+        self._latest_scan = msg
 
-    def image_callback(self, msg: Image):
+    def _odom_cb(self, msg: Odometry):
+        self._latest_odom = msg
+
+    def _image_cb(self, msg: Image):
         try:
-            self.latest_image = self.bridge.imgmsg_to_cv2(msg, "bgr8")
+            # Konverterer til BGR8 for OpenCV-kompatibilitet
+            self._latest_image = self.bridge.imgmsg_to_cv2(msg, "bgr8")
         except CvBridgeError as e:
-            self.node.get_logger().error(f"CvBridge Error : {e}")
+            self.node.get_logger().error(f"CvBridge Error: {e}")
 
-
+    # --- Getters ---
+    
     def get_latest_scan(self):
-        return self.latest_scan
-    
+        return self._latest_scan
+
     def get_latest_odom(self):
-        return self.latest_odom
-    
+        return self._latest_odom
+
     def get_latest_image(self):
-        return self.latest_image
+        return self._latest_image
