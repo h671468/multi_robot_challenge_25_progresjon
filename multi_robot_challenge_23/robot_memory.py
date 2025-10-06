@@ -10,13 +10,13 @@ class RobotMemory:
     
     # Big Fire States
     NORMAL = "NORMAL"
-    SCOUT_GOING_TO_FIRE = "SCOUT_GOING_TO_FIRE"
-    SCOUT_WAITING = "SCOUT_WAITING"
+    LEDER_GOING_TO_FIRE = "LEDER_GOING_TO_FIRE"
+    LEDER_WAITING = "LEDER_WAITING"
     SUPPORTER_GOING_TO_FIRE = "SUPPORTER_GOING_TO_FIRE"
     EXTINGUISHING = "EXTINGUISHING"
     
     # Roles
-    SCOUT = "SCOUT"
+    LEDER = "LEDER"
     SUPPORTER = "SUPPORTER"
     
     def __init__(self):
@@ -32,7 +32,7 @@ class RobotMemory:
         self.i_am_at_fire = False
         self.fire_extinguished = False
         
-        # Scout & Supporter roles
+        # Leder & Supporter roles
         self.my_role = None
         self.big_fire_state = self.NORMAL
         
@@ -48,8 +48,8 @@ class RobotMemory:
         # Note: Kan ikke bruke self.node.get_logger() her siden RobotMemory ikke har node reference
         self.big_fire_detected_by_me = True
         self.big_fire_position = position
-        self.my_role = self.SCOUT
-        self.big_fire_state = self.SCOUT_GOING_TO_FIRE
+        self.my_role = self.LEDER
+        self.big_fire_state = self.LEDER_GOING_TO_FIRE
 
     def set_big_fire_detected_by_other(self, position: tuple):
         """Sett Big Fire oppdaget av annen robot"""
@@ -58,9 +58,9 @@ class RobotMemory:
         self.my_role = self.SUPPORTER
         self.big_fire_state = self.SUPPORTER_GOING_TO_FIRE
 
-    def transition_to_scout_waiting(self):
-        """Transition til Scout venting"""
-        self.big_fire_state = self.SCOUT_WAITING
+    def transition_to_leder_waiting(self):
+        """Transition til Leder venting"""
+        self.big_fire_state = self.LEDER_WAITING
 
     def transition_to_extinguishing(self):
         """Transition til slukking"""
@@ -107,17 +107,17 @@ class RobotMemory:
         
         return result
 
-    def is_scout_waiting(self) -> bool:
-        """Sjekk om Scout venter"""
-        return self.big_fire_state == self.SCOUT_WAITING
+    def is_leder_waiting(self) -> bool:
+        """Sjekk om Leder venter"""
+        return self.big_fire_state == self.LEDER_WAITING
 
     def is_extinguishing(self) -> bool:
         """Sjekk om vi slukker brannen"""
         return self.big_fire_state == self.EXTINGUISHING
 
-    def is_scout_going_to_fire(self) -> bool:
-        """Sjekk om Scout går til brannen"""
-        return self.big_fire_state == self.SCOUT_GOING_TO_FIRE
+    def is_leder_going_to_fire(self) -> bool:
+        """Sjekk om Leder går til brannen"""
+        return self.big_fire_state == self.LEDER_GOING_TO_FIRE
 
     def is_supporter_going_to_fire(self) -> bool:
         """Sjekk om Supporter går til brannen"""
@@ -133,7 +133,7 @@ class RobotMemory:
 
     def is_goal_reached(self) -> bool:
         """Sjekk om mål er nådd"""
-        return self.big_fire_state in [self.SCOUT_WAITING, self.EXTINGUISHING]
+        return self.big_fire_state in [self.LEDER_WAITING, self.EXTINGUISHING]
 
     def update_robot_pose(self, position: tuple, orientation: float):
         """Oppdater robot posisjon og orientering"""

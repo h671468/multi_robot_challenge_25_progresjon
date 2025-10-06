@@ -79,29 +79,29 @@ class SearchRescueCoordinator:
         if coordinator.memory.big_fire_state == coordinator.NORMAL:
             # Bestem rolle basert på hvem som oppdaget Big Fire
             if coordinator.memory.big_fire_detected_by_me:
-                self.node.get_logger().info('🔥 SCOUT: Jeg oppdaget Big Fire - navigerer til brannen!')
+                self.node.get_logger().info('🔥 LEDER: Jeg oppdaget Big Fire - navigerer til brannen!')
             elif coordinator.memory.big_fire_detected_by_other:
                 self.node.get_logger().info('🔥 SUPPORTER: Mottok Big Fire melding - navigerer til brannen!')
                 
-        elif coordinator.memory.big_fire_state == coordinator.SCOUT_GOING_TO_FIRE:
-            # Scout navigerer til Big Fire
-            self.node.get_logger().info('🔥 SCOUT: In SCOUT_GOING_TO_FIRE state!')
+        elif coordinator.memory.big_fire_state == coordinator.LEDER_GOING_TO_FIRE:
+            # Leder navigerer til Big Fire
+            self.node.get_logger().info('🔥 LEDER: In LEDER_GOING_TO_FIRE state!')
             target = coordinator.get_target_position()
             if target:
-                self.node.get_logger().info(f'🔥 SCOUT: Target position: {target}')
+                self.node.get_logger().info(f'🔥 LEDER: Target position: {target}')
                 self.goal_navigator.set_goal(target)
-                self.node.get_logger().info('🔥 SCOUT: Calling navigate_to_goal_keep_target()')
+                self.node.get_logger().info('🔥 LEDER: Calling navigate_to_goal_keep_target()')
                 goal_reached = self.goal_navigator.navigate_to_goal_keep_target(msg)
-                self.node.get_logger().info(f'🔥 SCOUT: navigate_to_goal_keep_target() returned: {goal_reached}')
+                self.node.get_logger().info(f'🔥 LEDER: navigate_to_goal_keep_target() returned: {goal_reached}')
                 if goal_reached:
                     # STOP roboten når den når Big Fire
                     self.wall_follower.stop_robot()
                     self.goal_navigator.stop_robot()
-                    coordinator.memory.transition_to_scout_waiting()
-                    self.node.get_logger().info('🔥 SCOUT: Ankommet Big Fire - VENTER på Supporter!')
+                    coordinator.memory.transition_to_leder_waiting()
+                    self.node.get_logger().info('🔥 LEDER: Ankommet Big Fire - VENTER på Supporter!')
                     
-        elif coordinator.memory.big_fire_state == coordinator.SCOUT_WAITING:
-            # Scout venter på Supporter
+        elif coordinator.memory.big_fire_state == coordinator.LEDER_WAITING:
+            # Leder venter på Supporter
             self.wall_follower.stop_robot()
             if not coordinator.memory.i_am_at_fire:
                 coordinator.publish_robot_at_fire()
@@ -109,7 +109,7 @@ class SearchRescueCoordinator:
             # Sjekk om Supporter har ankommet
             if coordinator.memory.other_robot_at_fire:
                 coordinator.memory.transition_to_extinguishing()
-                self.node.get_logger().info('🔥 SCOUT: Supporter ankommet - begynner slukking!')
+                self.node.get_logger().info('🔥 LEDER: Supporter ankommet - begynner slukking!')
                 
         elif coordinator.memory.big_fire_state == coordinator.SUPPORTER_GOING_TO_FIRE:
             # Supporter navigerer til Big Fire

@@ -9,20 +9,20 @@ from .robot_memory import RobotMemory
 
 class BigFireCoordinator:
     """
-    Big Fire koordinering - EN ansvar: Scout & Supporter logikk
+    Big Fire koordinering - EN ansvar: Leder & Supporter logikk
     
     Single Responsibility: Kun Big Fire koordinering
     """
     
     # States
     NORMAL = "NORMAL"
-    SCOUT_GOING_TO_FIRE = "SCOUT_GOING_TO_FIRE"
-    SCOUT_WAITING = "SCOUT_WAITING"
+    LEDER_GOING_TO_FIRE = "LEDER_GOING_TO_FIRE"
+    LEDER_WAITING = "LEDER_WAITING"
     SUPPORTER_GOING_TO_FIRE = "SUPPORTER_GOING_TO_FIRE"
     EXTINGUISHING = "EXTINGUISHING"
     
     # Roles
-    SCOUT = "SCOUT"
+    LEDER = "LEDER"
     SUPPORTER = "SUPPORTER"
     
     def __init__(self, node_ref: Node, robot_memory: RobotMemory):
@@ -71,17 +71,17 @@ class BigFireCoordinator:
         )
 
     def detect_big_fire(self, position: tuple):
-        """Scout oppdager Big Fire"""
+        """Leder oppdager Big Fire"""
         self.memory.set_big_fire_detected_by_me(position)
         
         # Publiser Big Fire detection
         self.publish_big_fire_detection(position)
         
-        self.node.get_logger().info(f'🔥 SCOUT: Big Fire oppdaget på {position}!')
-        self.node.get_logger().info('🔥 SCOUT: Roboten skal nå stoppe og vente på koordinering!')
+        self.node.get_logger().info(f'🔥 LEDER: Big Fire oppdaget på {position}!')
+        self.node.get_logger().info('🔥 LEDER: Roboten skal nå stoppe og vente på koordinering!')
 
     def big_fire_callback(self, msg: String):
-        """Supporter mottar Big Fire melding fra Scout"""
+        """Supporter mottar Big Fire melding fra Leder"""
         if "BIG_FIRE_DETECTED" in msg.data:
             # Parse position from message
             parts = msg.data.split(':')
@@ -120,9 +120,9 @@ class BigFireCoordinator:
         """Sjekk om vi skal håndtere Big Fire koordinering"""
         return self.memory.should_handle_big_fire()
 
-    def is_scout_waiting(self) -> bool:
-        """Sjekk om Scout venter på Supporter"""
-        return self.memory.is_scout_waiting()
+    def is_leder_waiting(self) -> bool:
+        """Sjekk om Leder venter på Supporter"""
+        return self.memory.is_leder_waiting()
 
     def is_extinguishing(self) -> bool:
         """Sjekk om vi slukker brannen"""
@@ -133,19 +133,19 @@ class BigFireCoordinator:
         return self.memory.is_goal_reached()
 
     def publish_big_fire_detection(self, position: tuple):
-        """Scout publiserer Big Fire detection"""
+        """Leder publiserer Big Fire detection"""
         msg = String()
         msg.data = f"BIG_FIRE_DETECTED:{position[0]}:{position[1]}:{self.robot_id}"
         self.big_fire_pub.publish(msg)
-        self.node.get_logger().info(f'🔥 SCOUT: Publiserer Big Fire på {position}')
+        self.node.get_logger().info(f'🔥 LEDER: Publiserer Big Fire på {position}')
 
     def publish_robot_at_fire(self):
-        """Scout publiserer at den er ved brannen"""
+        """Leder publiserer at den er ved brannen"""
         msg = String()
         msg.data = f"{self.robot_id}:AT_FIRE"
         self.fire_position_pub.publish(msg)
         self.memory.set_i_am_at_fire(True)
-        self.node.get_logger().info('🔥 SCOUT: Publiserer at jeg er ved brannen!')
+        self.node.get_logger().info('🔥 LEDER: Publiserer at jeg er ved brannen!')
 
     def publish_fire_extinguished(self):
         """Publiserer at brannen er slukket"""
