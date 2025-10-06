@@ -7,9 +7,11 @@ from nav_msgs.msg import Odometry
 
 from .wall_follower import WallFollower
 from .goal_navigator import GoalNavigator
+from .bug2_navigator import Bug2Navigator
 from .big_fire_coordinator import BigFireCoordinator
 from .aruco_detector import ArUcoDetector
 from .robot_memory import RobotMemory
+from .sensor_manager import SensorManager
 
 class SearchRescueCoordinator:
     """
@@ -26,10 +28,12 @@ class SearchRescueCoordinator:
         self.robot_position = (0.0, 0.0)
         self.robot_orientation = 0.0
         
-        # Initialize komponenter
+        # Initialize komponenter med SensorManager
+        self.sensor_manager = SensorManager(node_ref)
         self.robot_memory = RobotMemory()
-        self.wall_follower = WallFollower(node_ref)
-        self.goal_navigator = GoalNavigator(node_ref)
+        self.wall_follower = WallFollower(node_ref, self.sensor_manager)
+        self.goal_navigator = GoalNavigator(node_ref, self.sensor_manager)
+        self.bug2_navigator = Bug2Navigator(node_ref)
         self.big_fire_coordinator = BigFireCoordinator(node_ref, self.robot_memory)
         self.aruco_detector = ArUcoDetector(node_ref, self.handle_aruco_detection)
         
@@ -47,31 +51,20 @@ class SearchRescueCoordinator:
             self.node.get_logger().info('🔥 BIG FIRE KOORDINERING AKTIV!')
             self.handle_big_fire(msg)
         else:
-            # Standard wall following
+            # Standard wall following (kan også bruke BUG2 hvis ønsket)
             self.wall_follower.follow_wall(msg)
 
     def process_odom(self, msg: Odometry):
         """Oppdater robot posisjon og orientering"""
-        self.robot_position = (
-            msg.pose.pose.position.x,
-            msg.pose.pose.position.y
-        )
-        
-        # Oppdater robot orientering (yaw)
-        qx = msg.pose.pose.orientation.x
-        qy = msg.pose.pose.orientation.y
-        qz = msg.pose.pose.orientation.z
-        qw = msg.pose.pose.orientation.w
-        
-        # Yaw (z-akse rotasjon)
-        import math
-        siny_cosp = 2 * (qw * qz + qx * qy)
-        cosy_cosp = 1 - 2 * (qy * qy + qz * qz)
-        self.robot_orientation = math.atan2(siny_cosp, cosy_cosp)
+        # SensorManager håndterer odometry data
+        # Hent oppdatert posisjon fra sensor_manager
+        self.robot_position = self.sensor_manager.get_robot_position()
+        self.robot_orientation = self.sensor_manager.get_robot_orientation()
         
         # Oppdater komponenter med ny posisjon
         self.robot_memory.update_robot_pose(self.robot_position, self.robot_orientation)
         self.goal_navigator.update_robot_pose(self.robot_position, self.robot_orientation)
+        self.bug2_navigator.update_robot_pose(self.robot_position, self.robot_orientation)
         self.big_fire_coordinator.update_state(self.robot_position, self.robot_orientation)
 
     def handle_big_fire(self, msg: LaserScan):
@@ -79,6 +72,9 @@ class SearchRescueCoordinator:
         coordinator = self.big_fire_coordinator
         
         self.node.get_logger().info(f'🔥 BIG FIRE HANDLER: Current state = {coordinator.memory.big_fire_state}')
+        
+        # STOP roboten umiddelbart når Big Fire koordinering er aktiv
+        self.wall_follower.stop_robot()
         
         if coordinator.memory.big_fire_state == coordinator.NORMAL:
             # Bestem rolle basert på hvem som oppdaget Big Fire
@@ -98,6 +94,9 @@ class SearchRescueCoordinator:
                 goal_reached = self.goal_navigator.navigate_to_goal_keep_target(msg)
                 self.node.get_logger().info(f'🔥 SCOUT: navigate_to_goal_keep_target() returned: {goal_reached}')
                 if goal_reached:
+                    # STOP roboten når den når Big Fire
+                    self.wall_follower.stop_robot()
+                    self.goal_navigator.stop_robot()
                     coordinator.memory.transition_to_scout_waiting()
                     self.node.get_logger().info('🔥 SCOUT: Ankommet Big Fire - VENTER på Supporter!')
                     
@@ -123,6 +122,9 @@ class SearchRescueCoordinator:
                 goal_reached = self.goal_navigator.navigate_to_goal_keep_target(msg)
                 self.node.get_logger().info(f'🔥 SUPPORTER: navigate_to_goal_keep_target() returned: {goal_reached}')
                 if goal_reached:
+                    # STOP roboten når den når Big Fire
+                    self.wall_follower.stop_robot()
+                    self.goal_navigator.stop_robot()
                     coordinator.memory.transition_to_extinguishing()
                     self.node.get_logger().info('🔥 SUPPORTER: Ankommet Big Fire - begynner slukking!')
                     
@@ -135,10 +137,15 @@ class SearchRescueCoordinator:
 
     def handle_aruco_detection(self, marker_id: int, position: tuple):
         """Håndterer ArUco marker detection"""
+        # STOP roboten umiddelbart når ANY ArUco marker oppdages
+        self.wall_follower.stop_robot()
+        self.goal_navigator.stop_robot()
+        self.node.get_logger().info(f'🛑 ROBOT STOPPED! ArUco ID {marker_id} oppdaget på {position}')
+        
         if marker_id == 4:  # Big Fire
             self.node.get_logger().info(f'🔥 BIG FIRE DETECTED! Calling detect_big_fire({position})')
             self.big_fire_coordinator.detect_big_fire(position)
             self.node.get_logger().info(f'🔥 After detect_big_fire: should_handle_big_fire={self.big_fire_coordinator.should_handle_big_fire()}')
         else:
             # Andre markers - rapporter til scoring system
-            self.node.get_logger().info(f'📊 ArUco ID {marker_id} på {position}')
+            self.node.get_logger().info(f'📊 ArUco ID {marker_id} på {position} - Roboten stopper for scoring!')

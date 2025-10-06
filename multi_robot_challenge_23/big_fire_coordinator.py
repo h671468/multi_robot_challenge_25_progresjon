@@ -78,6 +78,7 @@ class BigFireCoordinator:
         self.publish_big_fire_detection(position)
         
         self.node.get_logger().info(f'🔥 SCOUT: Big Fire oppdaget på {position}!')
+        self.node.get_logger().info('🔥 SCOUT: Roboten skal nå stoppe og vente på koordinering!')
 
     def big_fire_callback(self, msg: String):
         """Supporter mottar Big Fire melding fra Scout"""

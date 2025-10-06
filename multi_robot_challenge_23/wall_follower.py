@@ -19,8 +19,9 @@ class WallFollower:
     THRESHOLD = 0.8           # Avstand for kollisjonsunngåelse
     WALL_DISTANCE = 0.5       # Ønsket avstand fra vegg
     
-    def __init__(self, node_ref: Node):
+    def __init__(self, node_ref: Node, sensor_manager=None):
         self.node = node_ref
+        self.sensor_manager = sensor_manager
         
         # Wall following state
         self.is_turning = False
@@ -32,15 +33,21 @@ class WallFollower:
         
         self.node.get_logger().info('🧱 WallFollower initialisert')
 
-    def follow_wall(self, msg: LaserScan, target_direction=None):
+    def follow_wall(self, msg: LaserScan = None, target_direction=None):
         """
         Wall following logikk
         
         Args:
-            msg: LaserScan data
+            msg: LaserScan data (optional, kan bruke sensor_manager)
             target_direction: (x, y) retning for guided wall following
         """
-        if not msg.ranges:
+        # Bruk sensor_manager hvis tilgjengelig og ingen msg gitt
+        if msg is None and self.sensor_manager:
+            if not self.sensor_manager.is_scan_valid():
+                self.stop_robot()
+                return
+            msg = self.sensor_manager.get_latest_scan()
+        elif not msg or not msg.ranges:
             self.stop_robot()
             return
 
@@ -131,6 +138,11 @@ class WallFollower:
 
     def _range_at_deg(self, scan: LaserScan, deg, default=100.0):
         """Hent avstand ved vinkel (grader) fra siste LIDAR"""
+        # Bruk sensor_manager hvis tilgjengelig
+        if self.sensor_manager:
+            return self.sensor_manager.get_range_at_angle(deg, default)
+        
+        # Fallback til direkte scan håndtering
         if scan is None or not scan.ranges:
             return default
         
@@ -152,7 +164,7 @@ class WallFollower:
         twist_msg = Twist()
         twist_msg.linear.x = linear_x
         twist_msg.angular.z = angular_z
-        self.node.cmd_vel_publisher.publish(twist_msg)
+        self.cmd_vel_publisher.publish(twist_msg)
 
     def stop_robot(self):
         """Stopper robot bevegelse"""

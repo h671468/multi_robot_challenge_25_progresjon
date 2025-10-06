@@ -20,8 +20,9 @@ class GoalNavigator:
     GOAL_THRESHOLD = 0.5  # meters
     P_GAIN = 1.0  # P-kontroll for heading
     
-    def __init__(self, node_ref: Node):
+    def __init__(self, node_ref: Node, sensor_manager=None):
         self.node = node_ref
+        self.sensor_manager = sensor_manager
         self.target_position = None
         self.robot_position = (0.0, 0.0)
         self.robot_orientation = 0.0
@@ -49,10 +50,18 @@ class GoalNavigator:
         """Oppdater robot posisjon og orientering"""
         self.robot_position = position
         self.robot_orientation = orientation
+        
+        # Oppdater også sensor_manager hvis tilgjengelig
+        if self.sensor_manager:
+            self.sensor_manager.robot_position = position
+            self.sensor_manager.robot_orientation = orientation
 
-    def navigate_to_goal(self, msg: LaserScan) -> bool:
+    def navigate_to_goal(self, msg: LaserScan = None) -> bool:
         """
         Naviger mot mål med obstacle avoidance
+        
+        Args:
+            msg: LaserScan data (optional, kan bruke sensor_manager)
         
         Returns:
             bool: True hvis mål er nådd
@@ -70,9 +79,12 @@ class GoalNavigator:
         self.go_to_goal_navigation(msg)
         return False
 
-    def navigate_to_goal_keep_target(self, msg: LaserScan) -> bool:
+    def navigate_to_goal_keep_target(self, msg: LaserScan = None) -> bool:
         """
         Naviger mot mål med obstacle avoidance (beholder målet)
+        
+        Args:
+            msg: LaserScan data (optional, kan bruke sensor_manager)
         
         Returns:
             bool: True hvis mål er nådd
@@ -118,7 +130,7 @@ class GoalNavigator:
         
         return distance <= self.GOAL_THRESHOLD
 
-    def go_to_goal_navigation(self, msg: LaserScan):
+    def go_to_goal_navigation(self, msg: LaserScan = None):
         """Go-to-Goal navigasjon med obstacle avoidance"""
         if not self.target_position:
             return
@@ -128,10 +140,19 @@ class GoalNavigator:
         dy = self.target_position[1] - self.robot_position[1]
         distance_to_goal = math.sqrt(dx*dx + dy*dy)
         
-        # Hent sensor data
-        dL = self._range_at_deg(msg, +15.0)
-        dR = self._range_at_deg(msg, -15.0)
-        dF = self._range_at_deg(msg, 0.0)
+        # Hent sensor data - bruk sensor_manager hvis tilgjengelig
+        if self.sensor_manager and self.sensor_manager.is_scan_valid():
+            dL = self.sensor_manager.get_range_at_angle(+15.0)
+            dR = self.sensor_manager.get_range_at_angle(-15.0)
+            dF = self.sensor_manager.get_range_at_angle(0.0)
+        elif msg:
+            dL = self._range_at_deg(msg, +15.0)
+            dR = self._range_at_deg(msg, -15.0)
+            dF = self._range_at_deg(msg, 0.0)
+        else:
+            # Ingen sensor data tilgjengelig
+            self.stop_robot()
+            return
         
         # Enkel goal navigation logikk
         linear_x, angular_z = self.calculate_commands(dx, dy, distance_to_goal, dL, dR, dF)
@@ -188,6 +209,11 @@ class GoalNavigator:
 
     def _range_at_deg(self, scan: LaserScan, deg: float, default: float = 100.0) -> float:
         """Hent avstand ved vinkel (grader) fra LIDAR"""
+        # Bruk sensor_manager hvis tilgjengelig
+        if self.sensor_manager:
+            return self.sensor_manager.get_range_at_angle(deg, default)
+        
+        # Fallback til direkte scan håndtering
         if scan is None or not scan.ranges:
             return default
         

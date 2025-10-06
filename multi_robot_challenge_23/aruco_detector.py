@@ -29,12 +29,12 @@ class ArUcoDetector:
 
     def setup_subscribers(self):
         """Sett opp ArUco marker detection subscribers"""
-        # Subscriber for ArUco marker ID
+        # Subscriber for ArUco marker ID (riktig topic basert på dokumentasjon)
         self.marker_id_sub = self.node.create_subscription(
             Int64, 'marker_id', self.marker_id_callback, 10
         )
         
-        # Subscriber for ArUco marker pose i map koordinater
+        # Subscriber for ArUco marker pose i map koordinater (riktig topic basert på dokumentasjon)
         self.marker_pose_sub = self.node.create_subscription(
             Pose, 'marker_map_pose', self.marker_pose_callback, 10
         )
